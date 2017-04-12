@@ -5,7 +5,7 @@
 
 void estruturaCadeia(int h, pid_t idProcesso){
 	for(i == 0, i < h, i++){
-		if((idProcesso = fork()))
+		if(idProcesso = fork())
 	}
 
 }

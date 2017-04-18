@@ -8,44 +8,56 @@
 #include <unistd.h>
 #include <time.h>
 #include <sys/wait.h>
+#include <errno.h>
 
-void estruturaCadeia(int qntdProcesso, int pidPai){
+double difTime(struct timespec t0, struct timespec t1){
+    return ((double)t1.tv_sec - t0.tv_sec) + ((double)(t1.tv_nsec-t0.tv_nsec) * 1e-9);
+}
+
+void estruturaCadeia(int h, FILE *arq){
+    printf("CADEIA\n");
+
     int i = 0;
+    struct timespec t0, t1;
+    int qntdProcessos = (2 ^ (h + 1) + 1);
 
     pid_t idProcesso;
-    int estado;
+    int pai = getpid();
 
     printf("Sou o processo incial com id %d e meu pai eh %d\n", getpid(), getppid());
 
-    for(i == 0; i <qntdProcesso; i++){
-    	idProcesso = fork();
-
-        if(idProcesso == 0){
+    clock_gettime(CLOCK_MONOTONIC_RAW, &t0); 
+    for(i == 0; i <qntdProcessos; i++){
+        if(fork() == 0){
             printf("Sou o processo %d meu pai eh %d\n", getpid(), getppid());
-        }else if(idProcesso <0){ //erro no fork
-            fprintf(stderr, "fork falhou\n");
-        }
-        else{ //pai
-            printf("Sou o processo pai %d meu pai eh %d\n", getpid(), getppid());
-            wait(0);
-            
-            //exit(0);
-            break;
+            continue;
         }
 
+        //pai
+        wait(0);
+        break;
     }
-
-            printf("Sou o processo %d e estou saindo\n", getpid()); 
-    
+        if(pai != getpid()){
+            printf("Sou o processo %d e estou saindo meu pai eh%d\n", getpid(), getppid());
+            exit(1);
+        }else if(pai == getpid()){ //para conseguir aferir o tempo
+            printf("Sou o processo %d e estou saindo meu pai eh%d\n", getpid(), getppid());
+            clock_gettime(CLOCK_MONOTONIC_RAW, &t1);    
+            fprintf(arq, "TEMPO %f\n", difTime(t0, t1));            
+        }    
 }
 
 
-void estruturaArv (int h){
-    int i = 0;
+void estruturaArv (int h, FILE *arq){
+    printf("ARVORE\n");
 
+    int i = 0;
+    struct timespec t0, t1;
+    int pai = getpid();
 
     printf("Sou o processo inicial com id %d e meu pai eh %d\n", getpid(), getppid());
 
+    clock_gettime(CLOCK_MONOTONIC_RAW, &t0);    
     for(i=0; i<h; i++ ){
         if(fork() == 0){
             printf("Sou o processo %d e meu pai eh %d\n", getpid(), getppid());
@@ -56,30 +68,56 @@ void estruturaArv (int h){
             continue;
         }
 
-        wait(0);        
+        wait(0);
+        wait(0);
         break;
     }
-        printf("Sou o processo %d e estou saindo meu pai eh%d\n", getpid(), getppid());
+
+        if(pai != getpid()){
+            printf("Sou o processo %d e estou saindo meu pai eh%d\n", getpid(), getppid());
+            exit(0);
+        }else if(pai == getpid()){
+            printf("Sou o processo %d e estou saindo meu pai eh%d\n", getpid(), getppid());
+            clock_gettime(CLOCK_MONOTONIC_RAW, &t1);
+            fprintf(arq, "TEMPO %f\n", difTime(t0, t1));
+        }
 }
 
 
 void main(int argc, char *argv[]){
-    clock_t inicio, fim;
-    float total;
-    /*entrada inconsistente*/
-    if(atoi(argv[1]) <= 0){
+
+    /*controles de entrada*/
+    if(!(argv[1])){
+        printf("Deve ser passado um valor por referência na execução do arquivo\n");
+        exit(-1);
+    }else if(atoi(argv[1]) < 0){
+        printf("O argumento deve ser um valor maior que zero\n");
         exit(-1);
     }
+    /*controle de entradas*/
 
-    int qntdProcessos = (2 ^ (atoi(argv[1]) + 1) + 1);
-
-    inicio = clock();
-    pid_t programaRaiz = getpid();
-    //estruturaCadeia(qntdProcessos, getpid());
     
-    estruturaArv(atoi(argv[1]));
+    FILE *fp, *fp1;
+    fp = fopen("ResultadosCAD.txt", "a");
 
-    //fim = clock();
-    //if (getpid() == programaRaiz)
-    //   printf("%f Tempo, %d;\n", (double)(fim - inicio) / CLOCKS_PER_SEC, programaRaiz);
+    if (fp == NULL) {
+       printf ("Houve um erro ao abrir o arquivo.\n");
+       exit(0);
+    }
+
+
+    estruturaCadeia(atoi(argv[1]), fp);
+    fclose(fp);
+
+    printf("------------------------------\n");
+
+    fp1 = fopen("ResultadosARV.txt", "a");
+
+    if (fp1 == NULL) {
+       printf ("Houve um erro ao abrir o arquivo.\n");
+       exit(0);
+    }
+
+    estruturaArv(atoi(argv[1]), fp1);
+    fclose(fp1);
 }

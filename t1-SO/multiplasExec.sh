@@ -1,6 +1,6 @@
 #!/bin/bash
 
-gcc -o t1 lsteil-t1SO.c
+gcc -o t1 lsteil-t1SO.c -lm
 
 for i in $(seq 1 $2);
 do

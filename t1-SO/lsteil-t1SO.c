@@ -9,6 +9,7 @@
 #include <time.h>
 #include <sys/wait.h>
 #include <errno.h>
+#include <math.h>
 
 double difTime(struct timespec t0, struct timespec t1){
     return ((double)t1.tv_sec - t0.tv_sec) + ((double)(t1.tv_nsec-t0.tv_nsec) * 1e-9);
@@ -19,31 +20,36 @@ void estruturaCadeia(int h, FILE *arq){
 
     int i = 0;
     struct timespec t0, t1;
-    int qntdProcessos = (2 ^ (h + 1) + 1);
+    int qntdProcessos = pow(2,(h+1))-1;
+    printf("%d\n", qntdProcessos);
 
-    pid_t idProcesso;
+    pid_t child;
     int pai = getpid();
 
     printf("Sou o processo incial com id %d e meu pai eh %d\n", getpid(), getppid());
 
-    clock_gettime(CLOCK_MONOTONIC_RAW, &t0); 
-    for(i == 0; i <qntdProcessos; i++){
-        if(fork() == 0){
-            printf("Sou o processo %d meu pai eh %d\n", getpid(), getppid());
-            continue;
-        }
+    clock_gettime(CLOCK_MONOTONIC_RAW, &t0);
+    for(i = 0; i <qntdProcessos - 1; i++){
+        child = fork();
 
-        //pai
-        wait(0);
-        break;
+        if(child == 0){
+            printf("Sou o processo %d meu pai eh %d\n", getpid(), getppid());
+        }else if(child < 0){ //erro no fork
+            fprintf(stderr, "fork falhou\n");
+            exit(-1);
+        }
+        else{ //pai
+            wait(0);
+            break;
+        }
     }
         if(pai != getpid()){
             printf("Sou o processo %d e estou saindo meu pai eh%d\n", getpid(), getppid());
             exit(1);
-        }else if(pai == getpid()){ //para conseguir aferir o tempo
+        }else if(pai == getpid()){ 
             printf("Sou o processo %d e estou saindo meu pai eh%d\n", getpid(), getppid());
             clock_gettime(CLOCK_MONOTONIC_RAW, &t1);    
-            fprintf(arq, "TEMPO %f\n", difTime(t0, t1));            
+            fprintf(arq, "%f\n", difTime(t0,t1));          
         }    
 }
 
@@ -54,18 +60,28 @@ void estruturaArv (int h, FILE *arq){
     int i = 0;
     struct timespec t0, t1;
     int pai = getpid();
+    pid_t child1, child2;
 
     printf("Sou o processo inicial com id %d e meu pai eh %d\n", getpid(), getppid());
 
     clock_gettime(CLOCK_MONOTONIC_RAW, &t0);    
     for(i=0; i<h; i++ ){
-        if(fork() == 0){
+        child1 = fork();
+        if(child1 == 0){
             printf("Sou o processo %d e meu pai eh %d\n", getpid(), getppid());
             continue;
+        }else if(child1 == -1){
+            fprintf(stderr, "fork falhou\n");
+            exit(-1);
         }
-        if(fork() == 0){
+
+        child2 = fork();
+        if(child2 == 0){
             printf("Sou o processo %d e meu pai eh %d\n", getpid(), getppid());
             continue;
+        }else if(child2 == -1){
+            fprintf(stderr, "fork falhou\n");
+            exit(-1);
         }
 
         wait(0);
@@ -79,12 +95,12 @@ void estruturaArv (int h, FILE *arq){
         }else if(pai == getpid()){
             printf("Sou o processo %d e estou saindo meu pai eh%d\n", getpid(), getppid());
             clock_gettime(CLOCK_MONOTONIC_RAW, &t1);
-            fprintf(arq, "TEMPO %f\n", difTime(t0, t1));
+            fprintf(arq, "%f\n", difTime(t0, t1));
         }
 }
 
 
-void main(int argc, char *argv[]){
+int main(int argc, char *argv[]){
 
     /*controles de entrada*/
     if(!(argv[1])){
@@ -106,7 +122,7 @@ void main(int argc, char *argv[]){
     }
 
 
-    estruturaCadeia(atoi(argv[1]), fp);
+    //estruturaCadeia(atoi(argv[1]), fp);
     fclose(fp);
 
     printf("------------------------------\n");
@@ -118,6 +134,6 @@ void main(int argc, char *argv[]){
        exit(0);
     }
 
-    estruturaArv(atoi(argv[1]), fp1);
+   	estruturaArv(atoi(argv[1]), fp1);
     fclose(fp1);
 }

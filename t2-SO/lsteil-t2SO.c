@@ -12,20 +12,18 @@ threads/processos (M) que serão utilizados para o processamento.*/
 #include <sys/wait.h>
 #include <errno.h>
 #include <math.h>
-#include <pthreads.h>
+#include <pthread.h>
 
-
-typedef struct parametrosThreads{
-	int numThread = 0;
+struct parametrosThreads{
+	int numThread;
 	int *vet;
-}Parametros;
+	int finishPoint;
+	int startPoint;
+};
 
 /*função usada para preencher vetor com número aleatórios*/
 /*o range vai até 500*/
 int* preencheVetor(int tam_vetor, int *vetor){
-
-	vetor = (int *) malloc(tam_vetor*sizeof(int));
-
 	srand(time(NULL));
 	for (int i = 0; i < tam_vetor; i++){
 		vetor[i] = rand() % 500;
@@ -35,63 +33,80 @@ int* preencheVetor(int tam_vetor, int *vetor){
 	return vetor;
 }
 
-int verificaPrimo(int valor, int div){
+int verificaPrimo(int valor){
+	int div = 2;
 	int teste = 1;
-
-	if(valor % div == 0){
-		teste =  0;
+	int limite = sqrt(valor);
+	while(teste == 1 && div < limite){
+		if((valor % div) == 0){
+			teste = 0;
+		}
+		div ++;
 	}
 
-	if(teste == 0){
-		return 0;
-	}else return 1;
+	if(teste){
+		return 1;
+	}else return 0;
 }
 
 void buscaSequencial(int tam_vetor, int *vetor){
-	/*se teste = 0 número não primo, else if teste = 1 número primo*/
 
-	int div = 0;
-	int teste, limite, primos =0;
+	int cont = 0, contadorDePrimos = 0;
 
 	for (int i = 0; i < tam_vetor; i++) {
   		if(vetor[i] > 1){
-  			teste = 1;
-  			div = 2;
-  			limite = sqrt(vetor[i]);;
-  			while(teste == 1 && div < limite){
-  				if((vetor[i] % div) == 0){
-  					teste = 0;
-  				}
-  				div ++;
-  			}
-  			if(teste){
-  				primos ++;
-  			}
+  			cont = verificaPrimo(vetor[i]);
+  			contadorDePrimos = contadorDePrimos + cont;
   		}
   	}
 
-  	printf("Sequencial -> %d\n", primos);
+  	printf("Sequencial -> %d\n", contadorDePrimos);
 }
 
 void buscaProcessos(int tam_vetor, int *vetor, int qntdProcessos){
 
 }
 
-void buscaThreads(int tam_vetor, int *vetor, int qntdThreads, pid_t pai){
-	pthreads threads[qntdThreads];
-	Parametros p[qntdThreads];
+
+void *percorreTrecho(void *p) {
+	struct parametrosThreads args = *(struct parametrosThreads*) p;
+	int contadorDePrimos = 0, cont = 0;
+
+	for(int i = args.startPoint; i < args.finishPoint; i++){
+		if(args.vet[i] > 1){
+
+			cont = verificaPrimo(args.vet[i]);
+			contadorDePrimos = contadorDePrimos + cont;
+		}
+	}
+
+	printf("Thread %d - > %d primos\n", args.numThread, contadorDePrimos);
+
+	return EXIT_SUCCESS;
+}
+
+void buscaThreads(int tam_vetor, int *vetor, int qntdThreads){
+	pthread_t threads[qntdThreads];
+	struct parametrosThreads p[qntdThreads];
 
 	for(int i = 0; i < qntdThreads; i++){
 		p[i].numThread = i;
-		p.[i].vetor = vetor;
-		pthread_create(&threads[i], NULL, percorreTrecho, (void*) &args[i]);
+		p[i].vet = vetor;
+		
+		if(i == 0){
+			p[i].startPoint = 0;
+		}else p[i].startPoint = p[i - 1].finishPoint;
+
+		if(i == qntdThreads - 1){
+			p[i].finishPoint = tam_vetor;
+		}else p[i].finishPoint = (tam_vetor / qntdThreads) * (i+1);
+
+		pthread_create(&threads[i], NULL, percorreTrecho, (void*) &p[i]);
 	}
 
-	for (int i = 0; i < NUM_THREADS; i++)
+	for (int i = 0; i < qntdThreads; i++)
 		pthread_join(threads[i], NULL);
 }
-
-void percorreTrecho()
 
 
 int main(int argc, char *argv[]){
@@ -110,4 +125,8 @@ int main(int argc, char *argv[]){
    	vetor = preencheVetor(atoi(argv[1]),vetor);
 
    	buscaSequencial(atoi(argv[1]),vetor);
+
+   	buscaThreads(atoi(argv[1]), vetor, atoi(argv[2]));
+
+   	return 0;
 }

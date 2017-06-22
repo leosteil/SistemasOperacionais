@@ -8,7 +8,6 @@
 #define QTEscritores 2
 
 sem_t rmutex; //
-sem_t db;    //controla o acesso a base da dados (Rc)
 int rc = 0;    //número de processos lendo ou querendo ler
 
 
